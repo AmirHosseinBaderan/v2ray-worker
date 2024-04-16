@@ -3,7 +3,8 @@ import { GetPanel, PostPanel } from "./panel"
 import { GetLogin, PostLogin } from "./auth"
 import { GetConfigList } from "./collector"
 import { ToYamlSubscription } from "./clash"
-import { ToBase64Subscription } from "./sub"
+import { ToBase64Subscription, ToRawSubscription } from "./sub"
+import { ToCustomConfigSubscription } from "./custom"
 import { Env, Config } from "./interfaces"
 
 let panelPath = ""
@@ -13,32 +14,34 @@ export default {
     const url: URL = new URL(request.url)
     const path: string = url.pathname.replace(/^\/|\/$/g, "")
     const lcPath = path.toLowerCase()
-    if (["sub", "clash"].includes(lcPath)) {
+    if (["sub", "clash", /*"custom", */"raw"].includes(lcPath)) {
       const configList: Array<Config> = await GetConfigList(url, env)
-      if (lcPath == 'clash') {
+      if (lcPath == "clash") {
         return new Response(ToYamlSubscription(configList));
+      // } else if (lcPath == "custom") {
+      //   return new Response(ToCustomConfigSubscription(configList));
+      } else if (lcPath == "raw") {
+        return new Response(ToRawSubscription(configList));
       } else {
         return new Response(ToBase64Subscription(configList));
       }
-    } else if (lcPath == 'vless-ws') {
-      return VlessOverWSHandler(request, env);
-    } else if (lcPath == 'login') {
-      if (request.method === 'GET') {
+    } else if (lcPath == "vless-ws") {
+      return VlessOverWSHandler(request, url.hostname, env);
+    } else if (lcPath == "login") {
+      if (request.method === "GET") {
         return GetLogin(request, env)
-      } else if (request.method === 'POST') {
+      } else if (request.method === "POST") {
         return PostLogin(request, env)
-      }
-    } else if (lcPath == panelPath) {
-      if (request.method === 'GET') {
-        return GetPanel(request, env)
-      } else if (request.method === 'POST') {
-        return PostPanel(request, env)
       }
     } else if (path) {
       return fetch(new Request(new URL("https://" + path), request))
     } else {
-      return fetch('https://www.randomurbanshop.ro')
+      if (request.method === "GET") {
+        return GetPanel(request, env)
+      } else if (request.method === "POST") {
+        return PostPanel(request, env)
+      }
     }
-    return new Response('Invalid request!');
+    return new Response("Invalid request!");
   }
 }
